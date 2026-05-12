@@ -1,15 +1,18 @@
-# Flight-Price-Prediction
-code- app.py
 import streamlit as st
 import pandas as pd
 import pickle
 import os
 import numpy as np
 import plotly.express as px
+import zipfile  # <--- Ye line dalo
 
-# 1. Consistency Fix: Random seed fix karo taaki price har refresh pe na badle
-np.random.seed(42) 
+# 1. Sabse pehle check karo ki kya .pkl file hai? 
+# Agar nahi hai (jo ki cloud par nahi hogi), toh zip se nikaalo.
+if not os.path.exists('flight_model.pkl'):
+    with zipfile.ZipFile('flight_model.zip', 'r') as zip_ref:
+        zip_ref.extractall()
 
+# 2. Ab normal tarike se model load karo
 base_path = os.path.dirname(__file__)
 model_path = os.path.join(base_path, 'flight_model.pkl')
 with open(model_path, 'rb') as f:
