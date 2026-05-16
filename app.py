@@ -63,18 +63,6 @@ st.set_page_config(page_title="Gaurav Joshi | Flight Analytics", layout="wide")
 st.markdown("<h1 style='text-align: left; color: #111111;'>Flight Price Prediction & Route Intelligence System</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: left; font-size: 15px; color: #555555;'>System Architect: <b>Gaurav Joshi</b> | Data Analyst </p><hr>", unsafe_allow_html=True)
 
-# --- AUTO-TRAIN IF PKL FILES MISSING ---
-if not os.path.exists(model_path) or not os.path.exists(encoder_path):
-    with st.spinner(" Server Initialization: Deploying analytical matrix nodes and training model... Please wait."):
-        if os.path.exists(trainer_script):
-            result = subprocess.run([sys.executable, trainer_script], capture_output=True, text=True)
-            if result.returncode != 0:
-                st.error(f"Execution Error during initialization: {result.stderr}")
-                st.stop()
-        else:
-            st.error("Critical System Failure: 'train_global.py' script missing in target directory.")
-            st.stop()
-
 try:
     model = pickle.load(open(model_path, 'rb'))
     enc = pickle.load(open(encoder_path, 'rb'))
