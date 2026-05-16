@@ -4,9 +4,13 @@ import pickle
 import numpy as np
 import plotly.express as px
 import os
+import subprocess
 from math import radians, cos, sin, asin, sqrt
 
 base_path = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(base_path, 'flight_model_v2.pkl')
+encoder_path = os.path.join(base_path, 'encoders.pkl')
+trainer_script = os.path.join(base_path, 'train_global.py')
 
 CITY_COORDS = {
     'Delhi': (28.6139, 77.2090), 'Mumbai': (19.0760, 72.8777),
@@ -43,9 +47,23 @@ st.set_page_config(page_title="Gaurav Joshi | Flight Analytics", layout="wide")
 st.markdown("<h1 style='text-align: left; color: #111111;'>Flight Price Prediction & Route Intelligence System</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: left; font-size: 15px; color: #555555;'>System Architect: <b>Gaurav Joshi</b> | Data Analyst </p><hr>", unsafe_allow_html=True)
 
+# --- CLOUD CRASH PROTECTION: Auto-Train Pipeline if PKL Files are Missing ---
+if not os.path.exists(model_path) or not os.path.exists(encoder_path):
+    with st.spinner(" Server Initialization: Deploying analytical matrix nodes and training model... Please wait."):
+        if os.path.exists(trainer_script):
+            # Running train_global.py programmatically on the server
+            result = subprocess.run(["python", trainer_script], capture_output=True, text=True)
+            if result.returncode != 0:
+                st.error(f"Execution Error during initialization: {result.stderr}")
+                st.stop()
+        else:
+            st.error("Critical System Failure: 'train_global.py' script missing in target directory.")
+            st.stop()
+
+# Safe loading after verified verification pipeline
 try:
-    model = pickle.load(open(os.path.join(base_path, 'flight_model_v2.pkl'), 'rb'))
-    enc = pickle.load(open(os.path.join(base_path, 'encoders.pkl'), 'rb'))
+    model = pickle.load(open(model_path, 'rb'))
+    enc = pickle.load(open(encoder_path, 'rb'))
 except Exception as e:
     st.error(f"Critical System Failure: Model deployment objects unavailable. Execution log: {e}")
     st.stop()
@@ -91,16 +109,16 @@ if st.button('Execute Analytical Pipeline'):
             converted_valuation = predicted_base / exchange_rate
             st.info(f"Cross-Border Currency Equivalency: {converted_valuation:,.2f} {curr_code} (Base Conversion Index Rate: {exchange_rate} INR)")
 
-        # --- NEW: "Best Time to Buy" Recommendation Engine ---
+        # "Best Time to Buy" Recommendation Engine
         st.markdown("###  Data-Driven Purchase Recommendation")
         if days <= 7:
             st.error(f" **Recommendation: BUY IMMEDIATELY.** Flights depart in {days} days. Prices are currently hyper-inflated by approx 28% due to close-in booking algorithms.")
         elif 7 < days <= 21:
             st.warning(f" **Recommendation: MONITOR & LOCK.** Prices are in a volatile transition window. Current trend shows standard trajectory. Securing a seat now avoids terminal fare hikes.")
         else:
-            st.success(f"**Recommendation: OPTIMAL WINDOW.** Booking {days} days out minimizes demand-based price scaling. Fares are currently at baseline stability threshold.")
+            st.success(f" **Recommendation: OPTIMAL WINDOW.** Booking {days} days out minimizes demand-based price scaling. Fares are currently at baseline stability threshold.")
 
-        # --- NEW: Multi-Carrier Price Comparison Matrix Chart ---
+        # Multi-Carrier Price Comparison Matrix Chart
         st.markdown("###  Cross-Carrier Fare Comparison Matrix")
         all_carriers = list(enc['a'].classes_)
         carrier_prices = []
