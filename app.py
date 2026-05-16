@@ -28,6 +28,17 @@ model_path = os.path.join(base_path, 'flight_model_v2.pkl')
 encoder_path = os.path.join(base_path, 'encoders.pkl')
 trainer_script = os.path.join(base_path, 'train_global.py')
 
+if not os.path.exists(model_path) or not os.path.exists(encoder_path):
+    with st.spinner("🔄 Server Initialization: Deploying analytical matrix nodes and training model... Please wait."):
+        if os.path.exists(trainer_script):
+            result = subprocess.run([sys.executable, trainer_script], capture_output=True, text=True)
+            if result.returncode != 0:
+                st.error(f"Execution Error during initialization: {result.stderr}")
+                st.stop()
+        else:
+            st.error("Critical System Failure: 'train_global.py' script missing.")
+            st.stop()
+
 CITY_COORDS = {
     'Delhi': (28.6139, 77.2090), 'Mumbai': (19.0760, 72.8777),
     'Bangalore': (12.9716, 77.5946), 'Kolkata': (22.5726, 88.3639),
