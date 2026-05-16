@@ -1,10 +1,26 @@
+import os
+import subprocess
+import sys
+
+# --- FORCE INDEPENDENT INSTALLATION INDEX (Ziddi Cache Bypass) ---
+def force_install_packages():
+    required_packages = ['pandas', 'numpy', 'scikit-learn', 'plotly']
+    for package in required_packages:
+        try:
+            __import__(package)
+        except ImportError:
+            # Force server terminal to download the package instantly
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# Execute independent installation before any other imports
+force_install_packages()
+
+# Now safe to import standard libraries
 import streamlit as st
 import pandas as pd
 import pickle
 import numpy as np
 import plotly.express as px
-import os
-import subprocess
 from math import radians, cos, sin, asin, sqrt
 
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -47,12 +63,11 @@ st.set_page_config(page_title="Gaurav Joshi | Flight Analytics", layout="wide")
 st.markdown("<h1 style='text-align: left; color: #111111;'>Flight Price Prediction & Route Intelligence System</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: left; font-size: 15px; color: #555555;'>System Architect: <b>Gaurav Joshi</b> | Data Analyst </p><hr>", unsafe_allow_html=True)
 
-# --- CLOUD CRASH PROTECTION: Auto-Train Pipeline if PKL Files are Missing ---
+# --- AUTO-TRAIN IF PKL FILES MISSING ---
 if not os.path.exists(model_path) or not os.path.exists(encoder_path):
     with st.spinner(" Server Initialization: Deploying analytical matrix nodes and training model... Please wait."):
         if os.path.exists(trainer_script):
-            # Running train_global.py programmatically on the server
-            result = subprocess.run(["python", trainer_script], capture_output=True, text=True)
+            result = subprocess.run([sys.executable, trainer_script], capture_output=True, text=True)
             if result.returncode != 0:
                 st.error(f"Execution Error during initialization: {result.stderr}")
                 st.stop()
@@ -60,7 +75,6 @@ if not os.path.exists(model_path) or not os.path.exists(encoder_path):
             st.error("Critical System Failure: 'train_global.py' script missing in target directory.")
             st.stop()
 
-# Safe loading after verified verification pipeline
 try:
     model = pickle.load(open(model_path, 'rb'))
     enc = pickle.load(open(encoder_path, 'rb'))
