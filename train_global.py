@@ -2,71 +2,50 @@ import pandas as pd
 import numpy as np
 import pickle
 import os
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestRegressor
 
+# --- CLOUD PATH CONFIGURATION ---
 base_path = os.path.dirname(os.path.abspath(__file__))
-target_file = os.path.join(base_path, 'airlines_flights_data.csv')
+data_path = os.path.join(base_path, 'airlines_flights_data.csv')
+model_save_path = os.path.join(base_path, 'flight_model_v2.pkl')
+encoder_save_path = os.path.join(base_path, 'encoders.pkl')
 
-if not os.path.exists(target_file):
-    print(f"Error: {target_file} not found.")
-    exit()
+# 1. Load Dataset Safely
+if not os.path.exists(data_path):
+    raise FileNotFoundError(f"Critical CSV missing at: {data_path}")
 
-df = pd.read_csv(target_file)
-df['Is_International'] = 0
+df = pd.read_csv(data_path)
 
-def generate_robust_intl_data(n=8000):
-    intl_cities = ['Dubai', 'London', 'New York', 'Singapore']
-    domestic_cities = ['Delhi', 'Mumbai', 'Bangalore', 'Kolkata', 'Hyderabad', 'Chennai']
-    airlines = ['Emirates', 'Air India', 'Indigo', 'Vistara', 'Singapore Airlines', 'British Airways']
-    
-    routes = []
-    for d in domestic_cities:
-        for i in intl_cities:
-            routes.append((d, i))
-            routes.append((i, d))
-            
-    data = []
-    for _ in range(n):
-        r = routes[np.random.randint(0, len(routes))]
-        al = np.random.choice(airlines)
-        days = np.random.randint(1, 61)
-        
-        if 'Dubai' in r:
-            base_p = 14000 if al == 'Indigo' else (28000 if al == 'Emirates' else 20000)
-            scaler = 350
-        elif 'Singapore' in r:
-            base_p = 18000 if al == 'Indigo' else (35000 if al == 'Singapore Airlines' else 24000)
-            scaler = 450
-        elif 'London' in r:
-            base_p = 32000 if al == 'Air India' else (55000 if al == 'British Airways' else 42000)
-            scaler = 600
-        else: # New York
-            base_p = 55000 if al == 'Air India' else (85000 if al == 'Emirates' else 70000)
-            scaler = 900
-            
-        price = base_p + (60 - days) * scaler + np.random.randint(-2000, 2000)
-        data.append([r[0], r[1], al, days, 1, price])
-        
-    return pd.DataFrame(data, columns=['source_city', 'destination_city', 'airline', 'days_left', 'Is_International', 'price'])
+# Clean Columns if whitespace exists
+df.columns = df.columns.str.strip()
 
-intl_df = generate_robust_intl_data()
-final_df = pd.concat([df, intl_df], ignore_index=True)
+# 2. Preprocessing Elements
+le_source = LabelEncoder()
+le_dest = LabelEncoder()
+le_airline = LabelEncoder()
 
-le_s = LabelEncoder().fit(final_df['source_city'])
-le_d = LabelEncoder().fit(final_df['destination_city'])
-le_a = LabelEncoder().fit(final_df['airline'])
+df['source_enc'] = le_source.fit_transform(df['from'])
+df['dest_enc'] = le_dest.fit_transform(df['to'])
+df['airline_enc'] = le_airline.fit_transform(df['airline'])
 
-final_df['source_city'] = le_s.transform(final_df['source_city'])
-final_df['destination_city'] = le_d.transform(final_df['destination_city'])
-final_df['airline'] = le_a.transform(final_df['airline'])
+# Handle international binary indicator mapping
+df['is_intl'] = df['class'].apply(lambda x: 1 if 'business' in str(x).lower() else 0) 
 
-X = final_df[['source_city', 'destination_city', 'airline', 'days_left', 'Is_International']]
-y = final_df['price']
+# 3. Feature Selection Matrix
+X = df[['source_enc', 'dest_enc', 'airline_enc', 'days_left', 'is_intl']].values
+y = df['price'].values
 
-model = RandomForestRegressor(n_estimators=150, random_state=42, n_jobs=-1).fit(X, y)
+# 4. Model Training Pipeline
+model = RandomForestRegressor(n_estimators=50, random_state=42, max_depth=15)
+model.fit(X, y)
 
-pickle.dump(model, open(os.path.join(base_path, 'flight_model_v2.pkl'), 'wb'))
-pickle.dump({'s': le_s, 'd': le_d, 'a': le_a}, open(os.path.join(base_path, 'encoders.pkl'), 'wb'))
+# 5. ABSOLUTE PATH OBJECT DUMPING (Cloud Lock)
+with open(model_save_path, 'wb') as f:
+    pickle.dump(model, f)
 
-print("Global Multi-Sector Training Execution Successful.")
+encoders = {'s': le_source, 'd': le_dest, 'a': le_airline}
+with open(encoder_save_path, 'wb') as f:
+    pickle.dump(encoders, f)
+
+print("Backend Matrix Training Completed Successfully via Cloud Paths.")
